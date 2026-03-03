@@ -1,0 +1,4 @@
+# GPUStack部署脚本依赖
+requests>=2.31.0
+modelscope>=1.14.0
+aiohttp>=3.9.0

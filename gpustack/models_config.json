@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Qwen/Qwen3-VL-2B-Instruct-GGUF",
+    "backend_parameters": [
+      "--reasoning-parser=qwen3",
+      "--enable-auto-tool-choice",
+      "--tool-call-parser=hermes"
+    ]
+  },
+  {
+    "name": "Qwen/Qwen3-4B",
+    "backend_parameters": [
+      "--reasoning-parser=deepseek_r1",
+      "--enable-auto-tool-choice",
+      "--tool-call-parser=hermes"
+    ]
+  },
+  {
+    "name": "BAAI/bge-m3",
+    "backend_parameters": []
+  },
+  {
+    "name": "BAAI/bge-reranker-v2-m3",
+    "backend_parameters": []
+  }
+]

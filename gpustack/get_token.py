@@ -2,27 +2,58 @@
 import requests
 import json
 import sys
+import subprocess
 from get_ip import get_local_ip
 
 def get_token():
     """
     获取gpustack API token的脚本
     步骤：
-    1. 访问本地IP的端口，获取cookie
-    2. 调用API获取API key并保存到文件
-    3. 提供读取key的函数【用于后续调用API】
+    1. 从docker容器中获取初始管理员密码
+    2. 使用POST请求登录获取cookie
+    3. 调用API获取API key并保存到文件
+    4. 提供读取key的函数【用于后续调用API】
     """
     
     try:
-        # 步骤1: 访问本地IP的端口，获取cookie
-        ip = get_local_ip()
-        base_url = f"http://{ip}"
+        # 步骤1: 从docker容器中获取初始管理员密码
+        print("Getting initial admin password from docker container...")
+        password_cmd = ["sudo", "docker", "exec", "-it", "gpustack", "cat", "/var/lib/gpustack/initial_admin_password"]
         
-        # 发送请求获取cookie
-        response = requests.get(base_url, timeout=30)
+        try:
+            password_result = subprocess.run(password_cmd, capture_output=True, text=True, check=True)
+            password = password_result.stdout.strip()
+            if not password:
+                print("Error: Failed to get password from docker container", file=sys.stderr)
+                sys.exit(1)
+            print("Password obtained successfully")
+        except subprocess.CalledProcessError as e:
+            print(f"Error executing docker command: {e}", file=sys.stderr)
+            print(f"Command output: {e.output}", file=sys.stderr)
+            print(f"Command stderr: {e.stderr}", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error getting password: {e}", file=sys.stderr)
+            sys.exit(1)
+        
+        # 步骤2: 使用POST请求登录获取cookie
+        ip = get_local_ip()
+        login_url = f"http://{ip}/auth/login"
+        
+        print(f"Logging in to {login_url}...")
+        
+        # 准备登录数据
+        login_data = {
+            "username": "admin",
+            "password": password
+        }
+        
+        # 发送POST请求
+        response = requests.post(login_url, data=login_data, headers={"Content-Type": "application/x-www-form-urlencoded"}, timeout=30)
         
         if response.status_code != 200:
-            print(f"Error accessing {base_url}: HTTP {response.status_code}", file=sys.stderr)
+            print(f"Error logging in: HTTP {response.status_code}", file=sys.stderr)
+            print(f"Response: {response.text}", file=sys.stderr)
             sys.exit(1)
         
         # 提取cookie
@@ -32,8 +63,9 @@ def get_token():
         if not cookie_str:
             print("Error: No cookies found in response", file=sys.stderr)
             sys.exit(1)
+        print("Login successful, cookie obtained")
         
-        # 步骤2: 调用API获取API key
+        # 步骤3: 调用API获取API key
         api_url = f"http://{ip}/v2/api-keys"
         headers = {
             "Cookie": cookie_str,
@@ -46,6 +78,7 @@ def get_token():
             "allowed_model_names": []
         }
         
+        print(f"Creating API key at {api_url}...")
         response = requests.post(api_url, headers=headers, json=data, timeout=30)
         
         if response.status_code != 200:
